@@ -3,8 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { EducationModule } from './education/education.module';
 import { HealthModule } from './health/health.module';
 import { ObserveModule } from './observe';
+import { ResourcesModule } from './resources/resources.module';
+import { TreatmentsModule } from './treatments/treatments.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { ObserveModule } from './observe';
     }),
 
     HealthModule,
+    EducationModule,
+    TreatmentsModule,
+    ResourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
