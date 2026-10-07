@@ -2,21 +2,18 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 
 import { EducationService } from './education.service';
 import type { EducationArticle } from './education.types';
+import { EducationQueryDto } from './dto/education-query.dto';
 
 @Controller('education')
 export class EducationController {
   constructor(private readonly educationService: EducationService) {}
 
   @Get()
-  findAll(
-    @Query('language') language?: string,
-    @Query('category') category?: string,
-    @Query('search') search?: string,
-  ): EducationArticle[] {
+  findAll(@Query() query: EducationQueryDto): EducationArticle[] {
     return this.educationService.findAll({
-      language,
-      category,
-      search,
+      language: query.language,
+      category: query.category,
+      search: query.search,
     });
   }
 

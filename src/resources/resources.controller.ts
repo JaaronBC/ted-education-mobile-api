@@ -2,21 +2,18 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 
 import { ResourcesService } from './resources.service';
 import type { Resource } from './resources.types';
+import { ResourcesQueryDto } from './dto/resources-query.dto';
 
 @Controller('resources')
 export class ResourcesController {
   constructor(private readonly resourcesService: ResourcesService) {}
 
   @Get()
-  findAll(
-    @Query('language') language?: string,
-    @Query('category') category?: string,
-    @Query('search') search?: string,
-  ): Resource[] {
+  findAll(@Query() query: ResourcesQueryDto): Resource[] {
     return this.resourcesService.findAll({
-      language,
-      category,
-      search,
+      language: query.language,
+      category: query.category,
+      search: query.search,
     });
   }
 
