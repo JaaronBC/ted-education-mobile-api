@@ -144,6 +144,7 @@ describe('TED password login regression', () => {
       id: USER_ID,
       isActive: true,
       sessionVersion: 0,
+      emailVerifiedAt: new Date(),
       passwordHash: await hash('CorrectPassword123!', 4),
     });
 
@@ -184,10 +185,21 @@ describe('TED MFA login result', () => {
       signAsync: vi.fn().mockResolvedValue('challenge'),
     };
 
+    const sessions = {
+      issue: vi.fn().mockResolvedValue({
+        mfaRequired: false,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+      }),
+    };
+
     const service = new MfaService(
       prisma as never,
       jwt as never,
       {} as never,
+      sessions as never,
     );
 
     const result = await service.loginResult({
@@ -222,10 +234,21 @@ describe('TED MFA login result', () => {
       signAsync: vi.fn().mockResolvedValue('access-token'),
     };
 
+    const sessions = {
+      issue: vi.fn().mockResolvedValue({
+        mfaRequired: false,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+      }),
+    };
+
     const service = new MfaService(
       prisma as never,
       jwt as never,
       {} as never,
+      sessions as never,
     );
 
     const result = await service.loginResult({
@@ -238,12 +261,7 @@ describe('TED MFA login result', () => {
       accessToken: 'access-token',
     });
 
-    expect(jwt.signAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        purpose: 'access',
-        sv: 2,
-      }),
-    );
+    expect(sessions.issue).toHaveBeenCalledWith(USER_ID, 2);
   });
 });
 
@@ -258,6 +276,14 @@ function guardHarness(
   const prisma = {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
+    },
+    authSession: {
+      findUnique: vi.fn().mockResolvedValue({
+        userId: USER_ID,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 600000),
+        sessionVersion: 2,
+      }),
     },
   };
 
@@ -321,6 +347,7 @@ describe('TED JWT access protection', () => {
       {
         sub: USER_ID,
         purpose: 'access',
+        sid: USER_ID,
         sv: 1,
       },
       {
@@ -340,6 +367,7 @@ describe('TED JWT access protection', () => {
       {
         sub: USER_ID,
         purpose: 'access',
+        sid: USER_ID,
         sv: 2,
       },
       {

@@ -16,6 +16,9 @@ import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { GoogleAuthService } from './google-auth.service';
 import { PasswordResetService } from './password-reset.service';
+import { EmailVerificationService } from './email-verification.service';
+import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
@@ -27,6 +30,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly googleAuthService: GoogleAuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   @Get('me')
@@ -64,6 +68,20 @@ export class AuthController {
   })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Post('verify-email/request')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  requestEmailVerification(@Body() dto: RequestEmailVerificationDto) {
+    return this.emailVerification.requestCode(dto.email);
+  }
+
+  @Post('verify-email/confirm')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
+    return this.emailVerification.confirmCode(dto.email, dto.code);
   }
 
   @Post('forgot-password')

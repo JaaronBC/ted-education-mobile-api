@@ -8,9 +8,10 @@ import {
   createCipheriv, createDecipheriv, createHmac,
   randomBytes, timingSafeEqual,
 } from 'node:crypto';
+import { AuthSessionService } from './auth-session.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  JWT_ACCESS_SECONDS, JWT_ALGORITHM, JWT_AUDIENCE, JWT_ISSUER,
+  JWT_ALGORITHM, JWT_AUDIENCE, JWT_ISSUER,
 } from './jwt.config';
 
 function base32Encode(bytes: Buffer): string {
@@ -71,6 +72,7 @@ export class MfaService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly sessions: AuthSessionService,
   ) {}
 
   private key(): Buffer {
@@ -124,11 +126,11 @@ export class MfaService {
       .digest('hex');
   }
 
-  private async issueAccess(id: string, version: number) {
-    const accessToken = await this.jwt.signAsync({
-      sub: id, purpose: 'access', sv: version,
-    });
-    return { mfaRequired: false as const, accessToken, tokenType: 'Bearer' as const, expiresIn: JWT_ACCESS_SECONDS };
+  private async issueAccess(
+    id: string,
+    version: number,
+  ) {
+    return this.sessions.issue(id, version);
   }
 
   async loginResult(user: { id: string; sessionVersion: number }) {

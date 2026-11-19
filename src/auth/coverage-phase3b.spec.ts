@@ -98,10 +98,21 @@ function harness() {
     get: vi.fn().mockReturnValue(undefined),
   };
 
+  const sessions = {
+    issue: vi.fn().mockResolvedValue({
+      mfaRequired: false,
+      accessToken: 'access-token',
+      refreshToken: 'test-refresh-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+    }),
+  };
+
   const service = new MfaService(
     prisma as never,
     jwt as never,
     config as never,
+    sessions as never,
   );
 
   const inside = service as unknown as InternalMfa;
@@ -802,12 +813,21 @@ function guardHarness(authorization?: string) {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
     },
+    authSession: {
+      findUnique: vi.fn().mockResolvedValue({
+        userId: ID,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 600000),
+        sessionVersion: 3,
+      }),
+    },
   };
 
   const jwt = {
     verifyAsync: vi.fn().mockResolvedValue({
       sub: ID,
       purpose: 'access',
+      sid: ID,
       sv: 3,
     }),
   };

@@ -45,6 +45,7 @@ function mfaHarness() {
     prisma as never,
     jwt as never,
     config as never,
+    { issue: vi.fn() } as never,
   );
 
   return { service, prisma, jwt, config };

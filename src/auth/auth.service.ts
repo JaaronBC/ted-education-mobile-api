@@ -2,6 +2,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
@@ -33,6 +34,10 @@ export class AuthService {
     if (!user || !user.isActive || !user.passwordHash ||
         !(await compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid email or password.');
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException('Email verification required.');
     }
 
     return this.mfa.loginResult(user);

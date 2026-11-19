@@ -20,7 +20,7 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp()
-      .getRequest<Request & { user?: unknown }>();
+      .getRequest<Request & { user?: unknown; sessionId?: string }>();
 
     const [scheme, token] =
       (req.headers.authorization ?? '').split(' ');
@@ -29,7 +29,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let payload: { sub?: string; purpose?: string; sv?: number };
+    let payload: { sub?: string; sid?: string; purpose?: string; sv?: number };
 
     try {
       payload = await this.jwt.verifyAsync(token, {
@@ -41,13 +41,36 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    if (payload.purpose !== 'access' || typeof payload.sv !== 'number') {
+    if (payload.purpose !== 'access' || typeof payload.sv !== 'number' || !payload.sid) {
       throw new UnauthorizedException('Full authentication required.');
     }
 
     if (!payload.sub ||
         !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(payload.sub)) {
       throw new UnauthorizedException();
+    }
+
+    const session =
+      await this.prisma.authSession.findUnique({
+        where: { id: payload.sid },
+        select: {
+          userId: true,
+          revokedAt: true,
+          expiresAt: true,
+          sessionVersion: true,
+        },
+      });
+
+    if (
+      !session ||
+      session.userId !== payload.sub ||
+      session.revokedAt ||
+      session.expiresAt <= new Date() ||
+      session.sessionVersion !== payload.sv
+    ) {
+      throw new UnauthorizedException(
+        'Session revoked or expired.',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -60,6 +83,8 @@ export class JwtAuthGuard implements CanActivate {
         role: true,
         isActive: true,
         sessionVersion: true,
+        passwordHash: true,
+        emailVerifiedAt: true,
         preferredLanguage: true,
         fontScale: true,
         highContrast: true,
@@ -72,8 +97,19 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    const { isActive: _isActive, sessionVersion: _sessionVersion, ...safeUser } = user;
+    if (user.passwordHash && !user.emailVerifiedAt) {
+      throw new UnauthorizedException('Email verification required.');
+    }
+
+    const {
+      isActive: _isActive,
+      sessionVersion: _sessionVersion,
+      passwordHash: _passwordHash,
+      emailVerifiedAt: _emailVerifiedAt,
+      ...safeUser
+    } = user;
     req.user = safeUser;
+    req.sessionId = payload.sid;
     return true;
   }
 }
