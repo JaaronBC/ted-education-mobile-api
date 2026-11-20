@@ -16,6 +16,9 @@ import { GoogleAuthService } from './google-auth.service';
 import { MfaService } from './mfa.service';
 import { MfaController } from './mfa.controller';
 import { PasswordResetService } from './password-reset.service';
+import { AuthSessionService } from './auth-session.service';
+import { AuthSessionController } from './auth-session.controller';
+import { EmailVerificationService } from './email-verification.service';
 
 @Module({
   imports: [
@@ -33,7 +36,7 @@ import { PasswordResetService } from './password-reset.service';
       }),
     }),
   ],
-  controllers: [AuthController, MfaController],
-  providers: [AuthService, GoogleAuthService, PasswordResetService, MfaService, JwtAuthGuard],
+  controllers: [AuthController, MfaController, AuthSessionController],
+  providers: [AuthService, GoogleAuthService, PasswordResetService, EmailVerificationService, AuthSessionService, MfaService, JwtAuthGuard],
 })
 export class AuthModule {}

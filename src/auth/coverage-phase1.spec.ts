@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ConflictException,
   UnauthorizedException,
@@ -221,6 +221,10 @@ describe('AuthController route delegation', () => {
       auth as never,
       google as never,
       reset as never,
+      {
+        requestCode: vi.fn(),
+        confirmCode: vi.fn(),
+      } as never,
     );
 
     return { controller, auth, google, reset };
