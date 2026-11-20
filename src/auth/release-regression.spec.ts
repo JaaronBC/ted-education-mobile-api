@@ -31,6 +31,7 @@ function authHarness() {
     prisma as never,
     {} as never,
     mfa as never,
+    {} as never,
   );
 
   return { prisma, mfa, service };

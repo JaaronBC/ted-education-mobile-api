@@ -9,6 +9,12 @@ class CodeDto {
   @Matches(/^([0-9]{6}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{8})$/)
   code!: string;
 }
+class TotpOnlyDto {
+  @IsString()
+  @Matches(/^[0-9]{6}$/)
+  code!: string;
+}
+
 class VerifyDto extends CodeDto {
   @IsString()
   @MaxLength(4096)
@@ -42,6 +48,14 @@ export class MfaController {
   @HttpCode(200)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   verify(@Body() dto: VerifyDto) { return this.mfa.verifyChallenge(dto.challengeToken, dto.code); }
+
+  @Post('recovery/regenerate')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  regenerateRecoveryCodes(@Req() req: AuthRequest, @Body() dto: TotpOnlyDto) {
+    return this.mfa.regenerateRecoveryCodes(req.user.id, dto.code);
+  }
 
   @Post('disable')
   @HttpCode(200)

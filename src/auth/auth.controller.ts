@@ -22,6 +22,7 @@ import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dt
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -101,6 +102,24 @@ export class AuthController {
       dto.email,
       dto.code,
       dto.newPassword
+    );
+  }
+
+  @Post('change-password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Change password and revoke all sessions'
+  })
+  changePassword(
+    @Req() req: { user: { id: string } },
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      req.user.id,
+      dto.currentPassword,
+      dto.newPassword,
     );
   }
 

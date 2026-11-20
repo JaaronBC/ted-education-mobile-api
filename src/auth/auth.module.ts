@@ -11,6 +11,8 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthController } from './auth.controller';
+import { AvatarController } from './avatar.controller';
+import { AvatarService } from './avatar.service';
 import { AuthService } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
 import { MfaService } from './mfa.service';
@@ -36,7 +38,7 @@ import { EmailVerificationService } from './email-verification.service';
       }),
     }),
   ],
-  controllers: [AuthController, MfaController, AuthSessionController],
-  providers: [AuthService, GoogleAuthService, PasswordResetService, EmailVerificationService, AuthSessionService, MfaService, JwtAuthGuard],
+  controllers: [AvatarController, AuthController, MfaController, AuthSessionController],
+  providers: [AvatarService, AuthService, GoogleAuthService, PasswordResetService, EmailVerificationService, AuthSessionService, MfaService, JwtAuthGuard],
 })
 export class AuthModule {}

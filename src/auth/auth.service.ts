@@ -6,6 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mfa: MfaService,
+    private readonly config: ConfigService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -93,6 +95,142 @@ export class AuthService {
 
       throw error;
     }
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (
+      newPassword.length < 12 ||
+      Buffer.byteLength(newPassword, 'utf8') > 72
+    ) {
+      throw new BadRequestException(
+        'New password must have at least 12 characters and at most 72 UTF-8 bytes.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Sign in again.');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'This account has no password. Use the linked sign-in provider.',
+      );
+    }
+
+    const valid = await compare(
+      currentPassword,
+      user.passwordHash,
+    );
+
+    if (!valid) {
+      throw new UnauthorizedException(
+        'Current password is incorrect.',
+      );
+    }
+
+    const reused = await compare(
+      newPassword,
+      user.passwordHash,
+    );
+
+    if (reused) {
+      throw new BadRequestException(
+        'Choose a password different from the current one.',
+      );
+    }
+
+    const passwordHash = await hash(newPassword, 12);
+
+    // Update password and revoke sessions atomically.
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          passwordHash: user.passwordHash,
+          isActive: true,
+        },
+        data: {
+          passwordHash,
+          sessionVersion: { increment: 1 },
+        },
+      });
+
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'Account changed. Sign in again and retry.',
+        );
+      }
+
+      await tx.authSession.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    });
+
+    // Email notification is best-effort.
+    // Mail failure must not undo the password change.
+    const apiKey = this.config
+      .get<string>('RESEND_API_KEY')?.trim();
+
+    const from = this.config
+      .get<string>('RESET_EMAIL_FROM')?.trim();
+
+    if (apiKey && from) {
+      try {
+        const response = await fetch(
+          'https://api.resend.com/emails',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer ' + apiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from,
+              to: [user.email],
+              subject: 'TED Education: Your password was changed',
+              text:
+                'Your TED Education password was changed. ' +
+                'If this was not you, contact TED support immediately.',
+            }),
+            signal: AbortSignal.timeout(4000),
+          },
+        );
+
+        if (!response.ok) {
+          console.warn(
+            'Password-change notification could not be delivered.'
+          );
+        }
+      } catch {
+        console.warn(
+          'Password-change notification could not be delivered.'
+        );
+      }
+    }
+
+    return {
+      message: 'Password changed. All sessions have been revoked.',
+    };
   }
 
   async updateAccount(userId: string, dto: UpdateAccountDto) {
