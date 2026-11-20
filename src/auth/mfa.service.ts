@@ -264,6 +264,38 @@ export class MfaService {
     return this.issueAccess(payload.sub, user.sessionVersion);
   }
 
+  async regenerateRecoveryCodes(userId: string, code: string) {
+    if (!/^[0-9]{6}$/.test(code)) {
+      throw new BadRequestException('Authenticator code required.');
+    }
+
+    // Require a valid, unused TOTP code, not a backup code.
+    await this.authenticateFactor(userId, code);
+
+    const codes = Array.from({ length: 8 }, () => {
+      const raw = randomBytes(8).toString('hex').toUpperCase();
+      return raw.slice(0, 8) + '-' + raw.slice(8);
+    });
+
+    const recoveryHashes = codes.map(value => this.recoveryHash(value));
+
+    // Atomically replace the entire old set.
+    const updated = await this.prisma.mfaSetting.updateMany({
+      where: { userId, enabledAt: { not: null } },
+      data: { recoveryHashes },
+    });
+
+    if (updated.count !== 1) {
+      throw new ConflictException('Two-factor authentication changed. Try again.');
+    }
+
+    // Plaintext recovery codes are returned only once.
+    return {
+      recoveryCodes: codes,
+      recoveryCodesRemaining: codes.length,
+    };
+  }
+
   async disable(userId: string, code: string) {
     await this.authenticateFactor(userId, code);
     const version = await this.prisma.$transaction(async tx => {

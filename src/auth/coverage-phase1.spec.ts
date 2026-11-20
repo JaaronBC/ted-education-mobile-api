@@ -37,6 +37,7 @@ function makeAuth() {
     prisma as never,
     {} as never,
     mfa as never,
+    {} as never,
   );
 
   return { service, prisma, mfa };

@@ -9,7 +9,7 @@ export class UpdateAccountDto {
   fullName?: string;
 
   @IsOptional() @IsIn(['MALE','FEMALE','PREFER_NOT_TO_SAY'])
-  gender?: Gender;
+  gender?: Gender | null;
 
   @IsOptional() @IsIn(['en','zh','ja','ko','es'])
   preferredLanguage?: string;

@@ -30,7 +30,8 @@ describe('Email verification', () => {
     const service = new AuthService(
       prisma as never,
       {} as never,
-      mfa as never
+      mfa as never,
+      {} as never,
     );
 
     await expect(
